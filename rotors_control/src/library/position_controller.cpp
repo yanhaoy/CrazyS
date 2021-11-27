@@ -347,12 +347,177 @@ void PositionController::ControlMixer(double* PWM_1, double* PWM_2, double* PWM_
        crazyflie_onboard_controller_.RateController(&delta_phi, &delta_theta, &delta_psi);
     }
     else
-       RateController(&delta_phi, &delta_theta, &delta_psi);
+    {
+        RateController(&delta_phi, &delta_theta, &delta_psi);
+        Quaternion2Euler(&state_.attitude.roll, &state_.attitude.pitch, &state_.attitude.yaw);
+    }
 
-    *PWM_1 = control_t_.thrust - (delta_theta/2) - (delta_phi/2) - delta_psi;
-    *PWM_2 = control_t_.thrust + (delta_theta/2) - (delta_phi/2) + delta_psi;
-    *PWM_3 = control_t_.thrust + (delta_theta/2) + (delta_phi/2) - delta_psi;
-    *PWM_4 = control_t_.thrust - (delta_theta/2) + (delta_phi/2) + delta_psi;
+    // *PWM_1 = control_t_.thrust - (delta_theta/2) - (delta_phi/2) - delta_psi;
+    // *PWM_2 = control_t_.thrust + (delta_theta/2) - (delta_phi/2) + delta_psi;
+    // *PWM_3 = control_t_.thrust + (delta_theta/2) + (delta_phi/2) - delta_psi;
+    // *PWM_4 = control_t_.thrust - (delta_theta/2) + (delta_phi/2) + delta_psi;
+
+    double x[12] = {
+        (double)state_.position.x,
+        (double)state_.position.y,
+        (double)state_.position.z,
+        (double)state_.attitude.roll,
+        (double)-state_.attitude.pitch, // pitch is counterclockwise in crazyS
+        (double)state_.attitude.yaw,
+        (double)state_.linearVelocity.x,
+        (double)state_.linearVelocity.y,
+        (double)state_.linearVelocity.z,
+        (double)state_.angularVelocity.x,
+        (double)state_.angularVelocity.y,
+        (double)state_.angularVelocity.z,
+    };
+
+    double R_wb[9];
+    double g_R_wb_tmp[9];
+    double h_R_wb_tmp[9];
+    double y[3];
+    double R_wb_tmp;
+    double b_R_wb_tmp;
+    double c_R_wb_tmp;
+    double d_R_wb_tmp;
+    double e_R_wb_tmp;
+    double f_R_wb_tmp;
+    int aoffset;
+    int b_i;
+    int i;
+
+    R_wb_tmp = sin(x[5]);
+    b_R_wb_tmp = cos(x[5]);
+    c_R_wb_tmp = sin(x[4]);
+    d_R_wb_tmp = cos(x[4]);
+    e_R_wb_tmp = sin(x[3]);
+    f_R_wb_tmp = cos(x[3]);
+    g_R_wb_tmp[0] = b_R_wb_tmp;
+    g_R_wb_tmp[3] = -R_wb_tmp;
+    g_R_wb_tmp[6] = 0.0;
+    g_R_wb_tmp[1] = R_wb_tmp;
+    g_R_wb_tmp[4] = b_R_wb_tmp;
+    g_R_wb_tmp[7] = 0.0;
+    R_wb[0] = d_R_wb_tmp;
+    R_wb[3] = 0.0;
+    R_wb[6] = -c_R_wb_tmp;
+    g_R_wb_tmp[2] = 0.0;
+    R_wb[1] = 0.0;
+    g_R_wb_tmp[5] = 0.0;
+    R_wb[4] = 1.0;
+    g_R_wb_tmp[8] = 1.0;
+    R_wb[7] = 0.0;
+    R_wb[2] = c_R_wb_tmp;
+    R_wb[5] = 0.0;
+    R_wb[8] = d_R_wb_tmp;
+    for (i = 0; i < 3; i++)
+    {
+        b_R_wb_tmp = g_R_wb_tmp[i];
+        c_R_wb_tmp = g_R_wb_tmp[i + 3];
+        b_i = (int)g_R_wb_tmp[i + 6];
+        for (aoffset = 0; aoffset < 3; aoffset++)
+        {
+            h_R_wb_tmp[i + 3 * aoffset] = (b_R_wb_tmp * R_wb[3 * aoffset] +
+                                           c_R_wb_tmp * R_wb[3 * aoffset + 1]) +
+                                          (double)b_i * R_wb[3 * aoffset + 2];
+        }
+    }
+    g_R_wb_tmp[0] = 1.0;
+    g_R_wb_tmp[3] = 0.0;
+    g_R_wb_tmp[6] = 0.0;
+    g_R_wb_tmp[1] = 0.0;
+    g_R_wb_tmp[4] = f_R_wb_tmp;
+    g_R_wb_tmp[7] = -e_R_wb_tmp;
+    g_R_wb_tmp[2] = 0.0;
+    g_R_wb_tmp[5] = e_R_wb_tmp;
+    g_R_wb_tmp[8] = f_R_wb_tmp;
+    for (i = 0; i < 3; i++)
+    {
+        b_R_wb_tmp = h_R_wb_tmp[i];
+        c_R_wb_tmp = h_R_wb_tmp[i + 3];
+        R_wb_tmp = h_R_wb_tmp[i + 6];
+        for (b_i = 0; b_i < 3; b_i++)
+        {
+            R_wb[i + 3 * b_i] = (b_R_wb_tmp * g_R_wb_tmp[3 * b_i] +
+                                 c_R_wb_tmp * g_R_wb_tmp[3 * b_i + 1]) +
+                                R_wb_tmp * g_R_wb_tmp[3 * b_i + 2];
+        }
+    }
+    /*  Pitch rotate in clock-wise */
+    b_R_wb_tmp = x[6];
+    c_R_wb_tmp = x[7];
+    R_wb_tmp = x[8];
+    for (b_i = 0; b_i < 3; b_i++)
+    {
+        aoffset = b_i * 3;
+        y[b_i] = (R_wb[aoffset] * b_R_wb_tmp + R_wb[aoffset + 1] * c_R_wb_tmp) +
+                 R_wb[aoffset + 2] * R_wb_tmp;
+    }
+    x[6] = y[0];
+    x[7] = y[1];
+    x[8] = y[2];
+
+    double xd[12] = {0, 0, 0.2, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    double u[4];
+
+    static const double a[48] = {
+        -1.61243012235147, 1.61243012234999, 1.61243012234918,
+        -1.61243012235076, 1.61243012235033, 1.61243012234872,
+        -1.61243012234944, -1.61243012235117, 0.499301723366613,
+        0.49930172336702, 0.499301723366658, 0.499301723367039,
+        -1.54009963434544, -1.54009963434556, 1.54009963434583,
+        1.54009963434579, 1.54009963434635, -1.54009963434507,
+        -1.54009963434513, 1.54009963434644, -0.739603999577528,
+        0.739603999577081, -0.739603999577398, 0.739603999577205,
+        -0.803543003384964, 0.803543003384527, 0.803543003384333,
+        -0.803543003384869, 0.803543003384501, 0.80354300338409,
+        -0.803543003384682, -0.803543003385148, 0.603075078969817,
+        0.603075078969782, 0.603075078969796, 0.603075078969812,
+        -0.0644195176065534, -0.0644195176065537, 0.0644195176065539,
+        0.0644195176065537, -0.0644195176065547, 0.0644195176065528,
+        0.064419517606553, -0.0644195176065549, -0.381351086711616,
+        0.381351086711617, -0.381351086711618, 0.381351086711617};
+    double b_x[12];
+    double d;
+    //   int i;
+    int k;
+    /*  a = 2.130295 * 1e-11; */
+    /*  b = 1.032633 * 1e-6; */
+    /*  c = 5.484560 * 1e-4 - u; */
+    for (i = 0; i < 12; i++)
+    {
+        b_x[i] = x[i] - xd[i];
+    }
+    for (k = 0; k < 4; k++)
+    {
+        d = 0.0;
+        for (i = 0; i < 12; i++)
+        {
+            d += a[k + (i << 2)] * b_x[i];
+        }
+        u[k] = (sqrt(8.6095296399999985E-12 -
+                     3.69664E-9 * (0.0023 - (0.0662175 - d))) +
+                -2.9342E-6) /
+               1.84832E-9;
+    }
+
+    for (size_t i = 0; i < 4; i++)
+    {
+        u[i] = min(max(u[i], 0.), 65535.);
+        // u[i] = u[i] * 2 * 3.14159 / 60;
+    }
+
+    *PWM_1 = u[0];
+    *PWM_2 = u[1];
+    *PWM_3 = u[2];
+    *PWM_4 = u[3];
+
+    // *PWM_1 = 0;
+    // *PWM_2 = 0;
+    // *PWM_3 = 0;
+    // *PWM_4 = 0;
+
+    ROS_INFO_STREAM_THROTTLE(0.1, x[0] << "," << x[1] << "," << x[2] << "," << x[3] << "," << x[4] << "," << x[5] << "," << x[6] << "," << x[7] << "," << x[8] << "," << x[9] << "," << x[10] << "," << x[11]);
 
     if(dataStoring_active_){
       // Saving drone attitude in a file

@@ -1,0 +1,23 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "",
+        "limitSymbolsToIncludedHeaders": true
+      },
+      "includePath": [
+        "/home/yanhao/CrazyS/devel/include/**",
+        "/opt/ros/melodic/include/**",
+        "/home/yanhao/CrazyS/src/mav_comm/mav_msgs/include/**",
+        "/home/yanhao/CrazyS/src/mav_comm/mav_planning_msgs/include/**",
+        "/home/yanhao/CrazyS/src/CrazyS/rotors_control/include/**",
+        "/home/yanhao/CrazyS/src/CrazyS/rotors_gazebo/include/**",
+        "/home/yanhao/CrazyS/src/CrazyS/rotors_gazebo_plugins/include/**",
+        "/home/yanhao/CrazyS/src/CrazyS/rotors_joy_interface/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS"
+    }
+  ],
+  "version": 4
+}
