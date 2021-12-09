@@ -72,6 +72,8 @@ namespace rotors_control {
 	  double hovering_gain_kp_;
 	  double hovering_gain_ki_;
 	  double hovering_gain_kd_;
+
+	  int controller_type_ = 0;
 	};
 
 }

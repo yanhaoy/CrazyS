@@ -328,6 +328,335 @@ void PositionController::Quaternion2Euler(double* roll, double* pitch, double* y
 
 }
 
+void PositionController::rot_wb(float x[3], const float rpy[3], bool inv)
+{
+    float R_wb[9];
+    float g_R_wb_tmp[9];
+    float h_R_wb_tmp[9];
+    float b_R_wb[3];
+    float R_wb_tmp;
+    float b_R_wb_tmp;
+    float c_R_wb_tmp;
+    float d_R_wb_tmp;
+    float e_R_wb_tmp;
+    float f_R_wb_tmp;
+    int i;
+    int i1;
+    int i2;
+    R_wb_tmp = (float)sin(rpy[2]);
+    b_R_wb_tmp = (float)cos(rpy[2]);
+    c_R_wb_tmp = (float)sin(rpy[1]);
+    d_R_wb_tmp = (float)cos(rpy[1]);
+    e_R_wb_tmp = (float)sin(rpy[0]);
+    f_R_wb_tmp = (float)cos(rpy[0]);
+    g_R_wb_tmp[0] = b_R_wb_tmp;
+    g_R_wb_tmp[3] = -R_wb_tmp;
+    g_R_wb_tmp[6] = 0.0F;
+    g_R_wb_tmp[1] = R_wb_tmp;
+    g_R_wb_tmp[4] = b_R_wb_tmp;
+    g_R_wb_tmp[7] = 0.0F;
+    R_wb[0] = d_R_wb_tmp;
+    R_wb[3] = 0.0F;
+    R_wb[6] = -c_R_wb_tmp;
+    g_R_wb_tmp[2] = 0.0F;
+    R_wb[1] = 0.0F;
+    g_R_wb_tmp[5] = 0.0F;
+    R_wb[4] = 1.0F;
+    g_R_wb_tmp[8] = 1.0F;
+    R_wb[7] = 0.0F;
+    R_wb[2] = c_R_wb_tmp;
+    R_wb[5] = 0.0F;
+    R_wb[8] = d_R_wb_tmp;
+    for (i = 0; i < 3; i++)
+    {
+        b_R_wb_tmp = g_R_wb_tmp[i];
+        c_R_wb_tmp = g_R_wb_tmp[i + 3];
+        i1 = (int)g_R_wb_tmp[i + 6];
+        for (i2 = 0; i2 < 3; i2++)
+        {
+            h_R_wb_tmp[i + 3 * i2] =
+                (b_R_wb_tmp * R_wb[3 * i2] + c_R_wb_tmp * R_wb[3 * i2 + 1]) +
+                (float)i1 * R_wb[3 * i2 + 2];
+        }
+    }
+    g_R_wb_tmp[0] = 1.0F;
+    g_R_wb_tmp[3] = 0.0F;
+    g_R_wb_tmp[6] = 0.0F;
+    g_R_wb_tmp[1] = 0.0F;
+    g_R_wb_tmp[4] = f_R_wb_tmp;
+    g_R_wb_tmp[7] = -e_R_wb_tmp;
+    g_R_wb_tmp[2] = 0.0F;
+    g_R_wb_tmp[5] = e_R_wb_tmp;
+    g_R_wb_tmp[8] = f_R_wb_tmp;
+    for (i = 0; i < 3; i++)
+    {
+        b_R_wb_tmp = h_R_wb_tmp[i];
+        c_R_wb_tmp = h_R_wb_tmp[i + 3];
+        R_wb_tmp = h_R_wb_tmp[i + 6];
+        for (i1 = 0; i1 < 3; i1++)
+        {
+            R_wb[i + 3 * i1] = (b_R_wb_tmp * g_R_wb_tmp[3 * i1] +
+                                c_R_wb_tmp * g_R_wb_tmp[3 * i1 + 1]) +
+                               R_wb_tmp * g_R_wb_tmp[3 * i1 + 2];
+        }
+    }
+    if (inv)
+    {
+        for (i = 0; i < 3; i++)
+        {
+            b_R_wb[i] = (R_wb[i] * x[0] + R_wb[i + 3] * x[1]) + R_wb[i + 6] * x[2];
+        }
+        x[0] = b_R_wb[0];
+        x[1] = b_R_wb[1];
+        x[2] = b_R_wb[2];
+    }
+    else
+    {
+        for (i = 0; i < 3; i++)
+        {
+            b_R_wb[i] = (R_wb[3 * i] * x[0] + R_wb[3 * i + 1] * x[1]) +
+                        R_wb[3 * i + 2] * x[2];
+        }
+        x[0] = b_R_wb[0];
+        x[1] = b_R_wb[1];
+        x[2] = b_R_wb[2];
+    }
+}
+
+void PositionController::mylqr(const float x[12], const float xd[12], float u[4])
+{
+    static const float a[48] = {
+        -0.0011179F, 0.0011179F, 0.0011179F, -0.0011179F,
+        0.0011179F, 0.0011179F, -0.0011179F, -0.0011179F,
+        0.771970034F, 0.771970034F, 0.771970034F, 0.771970034F,
+        -0.0294773746F, -0.0294773746F, 0.0294773746F, 0.0294773746F,
+        0.0294773746F, -0.0294773746F, -0.0294773746F, 0.0294773746F,
+        -0.271381974F, 0.271381974F, -0.271381974F, 0.271381974F,
+        0.0103843957F, 0.0103843957F, -0.0103843957F, -0.0103843957F,
+        0.0103843957F, -0.0103843957F, -0.0103843957F, 0.0103843957F,
+        0.140915751F, 0.140915751F, 0.140915751F, 0.140915751F,
+        -0.0160540417F, -0.0160540417F, 0.0160540417F, 0.0160540417F,
+        -0.0160540417F, 0.0160540417F, 0.0160540417F, -0.0160540417F,
+        -0.147800714F, 0.147800714F, -0.147800714F, 0.147800714F};
+    float b_x[12];
+    float f;
+    int i;
+    int k;
+    /*  Real */
+    /*  a = 2.130295 * 1e-11; */
+    /*  b = 1.032633 * 1e-6; */
+    /*  c = 5.484560 * 1e-4 - u; */
+    /*  Sim */
+    for (i = 0; i < 12; i++)
+    {
+        b_x[i] = x[i] - xd[i];
+    }
+    for (k = 0; k < 4; k++)
+    {
+        f = 0.0F;
+        for (i = 0; i < 12; i++)
+        {
+            f += a[k + (i << 2)] * b_x[i];
+        }
+        u[k] = ((float)sqrt(8.60953E-12F -
+                            3.69664E-9F * (0.0023F - (0.0662175044F - f))) +
+                -2.9342E-6F) /
+               1.84832E-9F;
+    }
+}
+
+void PositionController::mylqr_pfl(const float x[12], const float xd[12], float u[4])
+{
+    static const float a[48] = {
+        -0.0F, -0.0F, 0.722209454F, -0.0F, -0.0F, 0.722209454F,
+        -0.0F, -0.0F, -114.365929F, -0.0F, -0.0F, -0.0F,
+        -0.0F, -193.310883F, -0.0F, -0.0F, -0.0F, -0.0F,
+        -193.310883F, -0.0F, -0.0F, -0.0F, -0.0F, -193.310883F,
+        -0.0F, -0.0F, 6.71274519F, -0.0F, -0.0F, 6.71274519F,
+        -0.0F, -0.0F, -20.8764095F, -0.0F, -0.0F, -0.0F,
+        -0.0F, -105.281456F, -0.0F, -0.0F, -0.0F, -0.0F,
+        -105.281456F, -0.0F, -0.0F, -0.0F, -0.0F, -105.281456F};
+    float xnew[12];
+    float J_wb_b[9];
+    float Y_idx_1;
+    float t15;
+    float t16;
+    float t18;
+    float t2;
+    float t20;
+    float t21;
+    float t23;
+    float t26;
+    float t28;
+    float t3;
+    float t31;
+    float t31_tmp;
+    float t35;
+    float t37;
+    float t39;
+    float t4;
+    float t40;
+    float t43;
+    float t44;
+    float t45;
+    float t5;
+    float t7;
+    int i;
+    int r3;
+    /* COMPJ */
+    /*     J_WB_B = COMPJ(IN1) */
+    /*     This function was generated by the Symbolic Math Toolbox version 8.7.
+   */
+    /*     08-Dec-2021 14:12:05 */
+    t2 = (float)cos(x[3]);
+    t3 = (float)cos(x[4]);
+    t4 = (float)sin(x[3]);
+    Y_idx_1 = (float)sin(x[4]);
+    J_wb_b[0] = 1.0F;
+    J_wb_b[3] = 0.0F;
+    J_wb_b[4] = -t2;
+    J_wb_b[5] = t4;
+    J_wb_b[6] = Y_idx_1;
+    J_wb_b[7] = t3 * t4;
+    J_wb_b[8] = t2 * t3;
+    for (i = 0; i < 12; i++)
+    {
+        xnew[i] = x[i];
+    }
+    i = 1;
+    r3 = 2;
+    J_wb_b[1] = 0.0F;
+    J_wb_b[2] = 0.0F;
+    J_wb_b[7] -= 0.0F * Y_idx_1;
+    J_wb_b[8] -= 0.0F * Y_idx_1;
+    if ((float)fabs(t4) > (float)fabs(-t2))
+    {
+        i = 2;
+        r3 = 1;
+    }
+    J_wb_b[r3 + 3] /= J_wb_b[i + 3];
+    J_wb_b[r3 + 6] -= J_wb_b[r3 + 3] * J_wb_b[i + 6];
+    Y_idx_1 = x[i + 9] - x[9] * 0.0F;
+    t4 = ((x[r3 + 9] - x[9] * 0.0F) - Y_idx_1 * J_wb_b[r3 + 3]) / J_wb_b[r3 + 6];
+    Y_idx_1 -= t4 * J_wb_b[i + 6];
+    Y_idx_1 /= J_wb_b[i + 3];
+    xnew[9] = (x[9] - t4 * J_wb_b[6]) - Y_idx_1 * 0.0F;
+    xnew[10] = Y_idx_1;
+    xnew[11] = t4;
+    for (i = 0; i < 12; i++)
+    {
+        xnew[i] -= xd[i];
+    }
+    for (i = 0; i < 4; i++)
+    {
+        Y_idx_1 = 0.0F;
+        for (r3 = 0; r3 < 12; r3++)
+        {
+            Y_idx_1 += a[i + (r3 << 2)] * xnew[r3];
+        }
+        u[i] = Y_idx_1;
+    }
+    /* COMPTAU */
+    /*     TAU = COMPTAU(IN1,IN2) */
+    /*     This function was generated by the Symbolic Math Toolbox version 8.7.
+   */
+    /*     08-Dec-2021 14:12:08 */
+    t2 = (float)cos(xnew[3]);
+    t3 = (float)cos(xnew[4]);
+    t4 = (float)sin(xnew[3]);
+    t5 = (float)sin(xnew[4]);
+    t7 = xnew[11] * xnew[11];
+    t15 = 1.41421354F * u[1] * 0.000107824511F;
+    t16 = t3 * 1.41421354F * xnew[10] * xnew[11] * 0.000182030722F;
+    t18 = t4 * 1.41421354F * xnew[9] * xnew[10] * 3.36183039E-5F;
+    t20 = t2 * 1.41421354F * u[2] * 0.000107824511F;
+    t21 = t5 * 1.41421354F * u[3] * 0.000107824511F;
+    t23 = t4 * t5 * 1.41421354F * xnew[10] * xnew[11] * 0.000182030722F;
+    Y_idx_1 = t2 * t3;
+    t26 = Y_idx_1 * 1.41421354F * xnew[9] * xnew[11] * 3.36183039E-5F;
+    t37 = t3 * t4;
+    t28 = t37 * 1.41421354F * u[3] * 0.000107824511F;
+    t31_tmp = t2 * t4;
+    t31 = t31_tmp * (xnew[10] * xnew[10]) * 1.41421354F * 7.42062039E-5F;
+    t35 = Y_idx_1 * t5 * t7 * 1.41421354F * 7.42062039E-5F;
+    t39 = t4 * u[2] * 0.00140386284F;
+    t40 = t2 * xnew[9] * xnew[10] * 0.00140386284F;
+    t43 = Y_idx_1 * u[3] * 0.00140386284F;
+    t44 = t37 * xnew[9] * xnew[11] * 0.00140386284F;
+    t45 = t2 * t5 * xnew[10] * xnew[11] * 0.00140386284F;
+    Y_idx_1 = 1.0F / t2 * (1.0F / t3);
+    t5 = t3 * (t2 * t2) * 1.41421354F * xnew[10] * xnew[11] * 0.000148412408F;
+    t37 = t31_tmp * t7 * (t3 * t3) * 1.41421354F * 7.42062039E-5F;
+    Y_idx_1 = Y_idx_1 * u[0] * 0.00675F + Y_idx_1 * 0.0662175F;
+    t4 = Y_idx_1 + -t15;
+    Y_idx_1 = (Y_idx_1 + t15) + t16;
+    /*  Real */
+    /*  a = 2.130295 * 1e-11; */
+    /*  b = 1.032633 * 1e-6; */
+    /*  c = 5.484560 * 1e-4 - u; */
+    /*  Sim */
+    u[0] = 8.60953E-12F -
+           3.69664E-9F *
+               (0.0023F -
+                ((((((((((((((((t4 + -t16) + t20) + -t18) + t23) + -t21) + -t26) +
+                          -t28) +
+                         t31) +
+                        t5) +
+                       t35) +
+                      -t37) +
+                     -t39) +
+                    -t40) +
+                   t44) +
+                  t45) +
+                 -t43));
+    u[1] = 8.60953E-12F -
+           3.69664E-9F *
+               (0.0023F -
+                ((((((((((((((((t4 + t18) + -t16) + -t20) + -t21) + t26) + -t23) +
+                          t28) +
+                         t31) +
+                        t5) +
+                       -t35) +
+                      -t37) +
+                     t39) +
+                    t40) +
+                   t43) +
+                  -t44) +
+                 -t45));
+    u[2] =
+        8.60953E-12F -
+        3.69664E-9F *
+            (0.0023F -
+             (((((((((((((((Y_idx_1 + t18) + t21) + -t20) + t26) + -t23) + t28) +
+                      -t31) +
+                     -t5) +
+                    -t35) +
+                   t37) +
+                  -t39) +
+                 -t40) +
+                t44) +
+               t45) +
+              -t43));
+    u[3] =
+        8.60953E-12F -
+        3.69664E-9F *
+            (0.0023F -
+             (((((((((((((((Y_idx_1 + t20) + t21) + -t18) + t23) + -t26) + -t28) +
+                      -t31) +
+                     -t5) +
+                    t35) +
+                   t37) +
+                  t39) +
+                 t40) +
+                t43) +
+               -t44) +
+              -t45));
+    u[0] = ((float)sqrt(u[0]) + -2.9342E-6F) / 1.84832E-9F;
+    u[1] = ((float)sqrt(u[1]) + -2.9342E-6F) / 1.84832E-9F;
+    u[2] = ((float)sqrt(u[2]) + -2.9342E-6F) / 1.84832E-9F;
+    u[3] = ((float)sqrt(u[3]) + -2.9342E-6F) / 1.84832E-9F;
+}
+
 void PositionController::ControlMixer(double* PWM_1, double* PWM_2, double* PWM_3, double* PWM_4) {
     assert(PWM_1);
     assert(PWM_2);
@@ -352,170 +681,63 @@ void PositionController::ControlMixer(double* PWM_1, double* PWM_2, double* PWM_
         Quaternion2Euler(&state_.attitude.roll, &state_.attitude.pitch, &state_.attitude.yaw);
     }
 
-    // *PWM_1 = control_t_.thrust - (delta_theta/2) - (delta_phi/2) - delta_psi;
-    // *PWM_2 = control_t_.thrust + (delta_theta/2) - (delta_phi/2) + delta_psi;
-    // *PWM_3 = control_t_.thrust + (delta_theta/2) + (delta_phi/2) - delta_psi;
-    // *PWM_4 = control_t_.thrust - (delta_theta/2) + (delta_phi/2) + delta_psi;
+    float pos[3] = {
+        state_.position.x,
+        state_.position.y,
+        state_.position.z};
+    float vel[3] = {
+        state_.linearVelocity.x,
+        state_.linearVelocity.y,
+        state_.linearVelocity.z};
+    float rpy[3] = {
+        state_.attitude.roll,
+        -state_.attitude.pitch, // pitch is counterclockwise in crazyS
+        state_.attitude.yaw};
+    float rpy_fake[3] = {
+        0,
+        0,
+        state_.attitude.yaw};
 
-    double x[12] = {
-        (double)state_.position.x,
-        (double)state_.position.y,
-        (double)state_.position.z,
-        (double)state_.attitude.roll,
-        (double)-state_.attitude.pitch, // pitch is counterclockwise in crazyS
-        (double)state_.attitude.yaw,
-        (double)state_.linearVelocity.x,
-        (double)state_.linearVelocity.y,
-        (double)state_.linearVelocity.z,
-        (double)state_.angularVelocity.x,
-        (double)state_.angularVelocity.y,
-        (double)state_.angularVelocity.z,
+    rot_wb(vel, rpy, false);
+    // rot_wb(pos, rpy_fake, true);
+    // rot_wb(vel, rpy_fake, true);
+
+    float x[12] = {
+        pos[0],
+        pos[1],
+        pos[2],
+        rpy[0],
+        rpy[1],
+        rpy[2],
+        vel[0],
+        vel[1],
+        vel[2],
+        state_.angularVelocity.x,
+        state_.angularVelocity.y,
+        state_.angularVelocity.z,
     };
 
-    double R_wb[9];
-    double g_R_wb_tmp[9];
-    double h_R_wb_tmp[9];
-    double y[3];
-    double R_wb_tmp;
-    double b_R_wb_tmp;
-    double c_R_wb_tmp;
-    double d_R_wb_tmp;
-    double e_R_wb_tmp;
-    double f_R_wb_tmp;
-    int aoffset;
-    int b_i;
-    int i;
+    float xd[12] = {0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    float u[4];
 
-    R_wb_tmp = sin(x[5]);
-    b_R_wb_tmp = cos(x[5]);
-    c_R_wb_tmp = sin(x[4]);
-    d_R_wb_tmp = cos(x[4]);
-    e_R_wb_tmp = sin(x[3]);
-    f_R_wb_tmp = cos(x[3]);
-    g_R_wb_tmp[0] = b_R_wb_tmp;
-    g_R_wb_tmp[3] = -R_wb_tmp;
-    g_R_wb_tmp[6] = 0.0;
-    g_R_wb_tmp[1] = R_wb_tmp;
-    g_R_wb_tmp[4] = b_R_wb_tmp;
-    g_R_wb_tmp[7] = 0.0;
-    R_wb[0] = d_R_wb_tmp;
-    R_wb[3] = 0.0;
-    R_wb[6] = -c_R_wb_tmp;
-    g_R_wb_tmp[2] = 0.0;
-    R_wb[1] = 0.0;
-    g_R_wb_tmp[5] = 0.0;
-    R_wb[4] = 1.0;
-    g_R_wb_tmp[8] = 1.0;
-    R_wb[7] = 0.0;
-    R_wb[2] = c_R_wb_tmp;
-    R_wb[5] = 0.0;
-    R_wb[8] = d_R_wb_tmp;
-    for (i = 0; i < 3; i++)
+    if (controller_parameters_.controller_type_ == 0)
     {
-        b_R_wb_tmp = g_R_wb_tmp[i];
-        c_R_wb_tmp = g_R_wb_tmp[i + 3];
-        b_i = (int)g_R_wb_tmp[i + 6];
-        for (aoffset = 0; aoffset < 3; aoffset++)
-        {
-            h_R_wb_tmp[i + 3 * aoffset] = (b_R_wb_tmp * R_wb[3 * aoffset] +
-                                           c_R_wb_tmp * R_wb[3 * aoffset + 1]) +
-                                          (double)b_i * R_wb[3 * aoffset + 2];
-        }
+        mylqr(x, xd, u);
     }
-    g_R_wb_tmp[0] = 1.0;
-    g_R_wb_tmp[3] = 0.0;
-    g_R_wb_tmp[6] = 0.0;
-    g_R_wb_tmp[1] = 0.0;
-    g_R_wb_tmp[4] = f_R_wb_tmp;
-    g_R_wb_tmp[7] = -e_R_wb_tmp;
-    g_R_wb_tmp[2] = 0.0;
-    g_R_wb_tmp[5] = e_R_wb_tmp;
-    g_R_wb_tmp[8] = f_R_wb_tmp;
-    for (i = 0; i < 3; i++)
+    else
     {
-        b_R_wb_tmp = h_R_wb_tmp[i];
-        c_R_wb_tmp = h_R_wb_tmp[i + 3];
-        R_wb_tmp = h_R_wb_tmp[i + 6];
-        for (b_i = 0; b_i < 3; b_i++)
-        {
-            R_wb[i + 3 * b_i] = (b_R_wb_tmp * g_R_wb_tmp[3 * b_i] +
-                                 c_R_wb_tmp * g_R_wb_tmp[3 * b_i + 1]) +
-                                R_wb_tmp * g_R_wb_tmp[3 * b_i + 2];
-        }
-    }
-    /*  Pitch rotate in clock-wise */
-    b_R_wb_tmp = x[6];
-    c_R_wb_tmp = x[7];
-    R_wb_tmp = x[8];
-    for (b_i = 0; b_i < 3; b_i++)
-    {
-        aoffset = b_i * 3;
-        y[b_i] = (R_wb[aoffset] * b_R_wb_tmp + R_wb[aoffset + 1] * c_R_wb_tmp) +
-                 R_wb[aoffset + 2] * R_wb_tmp;
-    }
-    x[6] = y[0];
-    x[7] = y[1];
-    x[8] = y[2];
-
-    double xd[12] = {0, 0, 0.2, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-    double u[4];
-
-    static const double a[48] = {
-        -1.61243012235147, 1.61243012234999, 1.61243012234918,
-        -1.61243012235076, 1.61243012235033, 1.61243012234872,
-        -1.61243012234944, -1.61243012235117, 0.499301723366613,
-        0.49930172336702, 0.499301723366658, 0.499301723367039,
-        -1.54009963434544, -1.54009963434556, 1.54009963434583,
-        1.54009963434579, 1.54009963434635, -1.54009963434507,
-        -1.54009963434513, 1.54009963434644, -0.739603999577528,
-        0.739603999577081, -0.739603999577398, 0.739603999577205,
-        -0.803543003384964, 0.803543003384527, 0.803543003384333,
-        -0.803543003384869, 0.803543003384501, 0.80354300338409,
-        -0.803543003384682, -0.803543003385148, 0.603075078969817,
-        0.603075078969782, 0.603075078969796, 0.603075078969812,
-        -0.0644195176065534, -0.0644195176065537, 0.0644195176065539,
-        0.0644195176065537, -0.0644195176065547, 0.0644195176065528,
-        0.064419517606553, -0.0644195176065549, -0.381351086711616,
-        0.381351086711617, -0.381351086711618, 0.381351086711617};
-    double b_x[12];
-    double d;
-    //   int i;
-    int k;
-    /*  a = 2.130295 * 1e-11; */
-    /*  b = 1.032633 * 1e-6; */
-    /*  c = 5.484560 * 1e-4 - u; */
-    for (i = 0; i < 12; i++)
-    {
-        b_x[i] = x[i] - xd[i];
-    }
-    for (k = 0; k < 4; k++)
-    {
-        d = 0.0;
-        for (i = 0; i < 12; i++)
-        {
-            d += a[k + (i << 2)] * b_x[i];
-        }
-        u[k] = (sqrt(8.6095296399999985E-12 -
-                     3.69664E-9 * (0.0023 - (0.0662175 - d))) +
-                -2.9342E-6) /
-               1.84832E-9;
+        mylqr_pfl(x, xd, u);
     }
 
     for (size_t i = 0; i < 4; i++)
     {
-        u[i] = min(max(u[i], 0.), 65535.);
-        // u[i] = u[i] * 2 * 3.14159 / 60;
+        u[i] = min(max(u[i], (float)(MAX_NEG_DELTA_OMEGA + OMEGA_OFFSET)), (float)(MAX_POS_DELTA_OMEGA + OMEGA_OFFSET));
     }
 
     *PWM_1 = u[0];
     *PWM_2 = u[1];
     *PWM_3 = u[2];
     *PWM_4 = u[3];
-
-    // *PWM_1 = 0;
-    // *PWM_2 = 0;
-    // *PWM_3 = 0;
-    // *PWM_4 = 0;
 
     ROS_INFO_STREAM_THROTTLE(0.1, x[0] << "," << x[1] << "," << x[2] << "," << x[3] << "," << x[4] << "," << x[5] << "," << x[6] << "," << x[7] << "," << x[8] << "," << x[9] << "," << x[10] << "," << x[11]);
 

@@ -231,6 +231,10 @@ void PositionControllerNode::InitializeParams() {
                     position_controller_.controller_parameters_.hovering_gain_kd_,
                     &position_controller_.controller_parameters_.hovering_gain_kd_);
 
+    GetRosParameter(pnh, "controller_type_",
+                    position_controller_.controller_parameters_.controller_type_,
+                    &position_controller_.controller_parameters_.controller_type_);
+
     position_controller_.SetControllerGains();
 
     ROS_INFO_ONCE("[Position Controller] Set controller gains and vehicle parameters");
