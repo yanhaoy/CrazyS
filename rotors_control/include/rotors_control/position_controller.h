@@ -122,6 +122,8 @@ namespace rotors_control {
             void YawPositionController(double* r_command);
             void XYController(double* theta_command, double* phi_command);
             void ControlMixer(double* PWM_1, double* PWM_2, double* PWM_3, double* PWM_4);
+	    void mypid(const float x[12], const float xd[12], float u[4]);
+	    void mygs(const float x[12], const float xd[12], float u[4]);
             void mylqr(const float x[12], const float xd[12], float u[4]);
             void mylqr_pfl(const float x[12], const float xd[12], float u[4]);
             void rot_wb(float x[3], const float rpy[3], const bool inv);
